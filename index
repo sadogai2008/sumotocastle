@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>洲本城 公式デモ — ローディング付き単一ファイル</title>
+
+  <style>
+    :root{
+      --bg: #FBFAF7;
+      --white: #FFFFFF;
+      --ink: #22262A;
+      --muted: #6B6F73;
+      --accent: #A88763;
+      --loader-min-ms: 1800; /* JS と整合させる */
+    }
+
+    /* Reset / base */
+    * { box-sizing: border-box; }
+    html,body { height:100%; margin:0; }
+    body {
+      font-family: "Noto Sans JP", "Noto Serif JP", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      background: var(--white);
+      color: var(--ink);
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+      line-height:1.6;
+    }
+
+    /* -------------------------
+       LOADER (full-screen)
+       ------------------------- */
+    #loader {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg);
+      z-index: 9999;
+      opacity: 1;
+      visibility: visible;
+      transition: opacity 600ms ease, visibility 600ms ease;
+    }
+
+    .loader-inner {
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      align-items: center;
+      padding: 20px;
+      max-width: 88vw;
+    }
+
+    /* Image: vertical mask (bottom transparent -> top opaque) + gentle fade-in */
+    #loader-image {
+      width: 300px;
+      max-width: 68vw;
+      height: auto;
+      display: block;
+
+      /* mask: 下が透明、上が不透明 */
+      -webkit-mask-image: linear-gradient(to top, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 100%);
+      mask-image: linear-gradient(to top, transparent 0%, black 100%);
+      -webkit-mask-size: 100% 0%;
+      mask-size: 100% 0%;
+      -webkit-mask-repeat: no-repeat;
+      mask-repeat: no-repeat;
+
+      /* animation: reveal mask (1.8s) + fadeIn */
+      animation: revealMask 1.8s ease forwards, loaderFadeIn 0.9s ease 0.3s forwards;
+      opacity: 0;
+      will-change: opacity, -webkit-mask-size, mask-size, transform;
+    }
+
+    @keyframes revealMask {
+      to { -webkit-mask-size: 100% 100%; mask-size: 100% 100%; }
+    }
+    @keyframes loaderFadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Loader text */
+    .loader-text {
+      margin: 0;
+      color: var(--ink);
+      font-weight: 600;
+      font-size: 16px;
+      letter-spacing: 0.02em;
+    }
+    .loader-sub {
+      display: block;
+      color: var(--muted);
+      font-weight: 400;
+      font-size: 13px;
+      margin-top: 6px;
+      opacity: 0.95;
+    }
+
+    /* When loading finished: fade out */
+    #loader.loaded {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    /* -------------------------
+       SITE (initially hidden)
+       ------------------------- */
+    #site.hidden {
+      visibility: hidden;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 360ms ease;
+    }
+
+    /* Simple site styles for demo */
+    .container { width: min(92%, 1200px); margin: 0 auto; padding: 28px 0; }
+    .site-header { border-bottom: 1px solid rgba(34,38,42,0.04); padding: 18px 0; }
+    .hero { padding: 56px 0; display: grid; grid-template-columns: 1fr 420px; gap: 36px; align-items: center; }
+    .hero-title { font-family: "Noto Serif JP", serif; font-size: 40px; margin: 0 0 12px; }
+    .hero-lead { color: var(--muted); margin: 0 0 20px; font-size: 16px; }
+    .hero-image {
+      width:100%;
+      border-radius: 12px;
+      border: 2px solid #fff;
+      box-shadow: 0 8px 24px rgba(34,38,42,0.06);
+      filter: brightness(1.06) contrast(1.03) saturate(0.92);
+    }
+    .cards { display: grid; grid-template-columns: repeat(3,1fr); gap:18px; margin-top: 18px; }
+    .card { background: #FBFAF7; border-radius: 12px; padding: 18px; border: 1px solid rgba(34,38,42,0.04); }
+    .site-footer { border-top: 1px solid rgba(34,38,42,0.04); padding: 18px 0; color: var(--muted); font-size: 13px; }
+
+    /* Responsive */
+    @media (max-width:980px) {
+      .hero { grid-template-columns: 1fr; }
+      #loader-image { width: 220px; }
+    }
+    @media (max-width:640px) {
+      #loader-image { width: 180px; }
+      .loader-text { font-size: 15px; }
+      .loader-sub { font-size: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <!--
+    NOTE:
+    - Please save the uploaded castle illustration as:
+        assets/loader-image.png
+      (or create WebP versions and adjust <picture> if you prefer).
+    - If you want to embed the exact uploaded image as a data URL, replace the img src with the data: URL.
+  -->
+
+  <!-- LOADING SCREEN -->
+  <div id="loader" aria-busy="true" role="status" aria-label="ローディング中">
+    <div class="loader-inner" role="img" aria-hidden="false">
+      <!-- Picture: replace sources if you prepared WebP / @2x -->
+      <picture>
+        <!-- Uncomment / replace if you have webp versions:
+        <source type="image/webp" srcset="assets/loader-image.webp 1x, assets/loader-image@2x.webp 2x">
+        -->
+        <img id="loader-image" src="assets/loader-image.png" alt="洲本城のイラスト（ローディング）" width="300" height="auto">
+      </picture>
+
+      <!-- Restored loading text as requested -->
+      <p class="loader-text">洲本城へようこそ
+        <span class="loader-sub">歴史の景色を映しています… — A glimpse of Sumoto Castle</span>
+      </p>
+    </div>
+  </div>
+
+  <!-- SITE (initially hidden) -->
+  <div id="site" class="hidden" lang="ja">
+    <header class="site-header container" role="banner">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div style="font-weight:700;">洲本城</div>
+        <nav aria-label="グローバルナビ">
+          <a href="#history" style="color:var(--muted);text-decoration:none;margin-right:14px;">歴史</a>
+          <a href="#highlights" style="color:var(--muted);text-decoration:none;margin-right:14px;">見どころ</a>
+          <a href="#access" style="color:var(--muted);text-decoration:none;">アクセス</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="container" role="main">
+      <section class="hero">
+        <div>
+          <h1 class="hero-title">洲本城 — 時の風景を歩む</h1>
+          <p class="hero-lead">淡路島の海と石垣が織りなす、静かな名城へご案内します。<br><small>Sumoto Castle — A serene citadel overlooking Awaji Island.</small></p>
+
+          <div class="cards" aria-hidden="false">
+            <article class="card"><h3>天守台</h3><p>往時の構造を伝える重要な遺構。<br><small>Keep base — the heart of the castle.</small></p></article>
+            <article class="card"><h3>石垣</h3><p>職人の技が息づく石積み。<br><small>Stone walls — regional craftsmanship.</small></p></article>
+            <article class="card"><h3>眺望</h3><p>海と島々を望む景色。朝夕がおすすめ。<br><small>Viewpoint — sunrise & sunset.</small></p></article>
+          </div>
+        </div>
+
+        <figure style="margin:0;">
+          <img src="assets/hero.jpg" alt="洲本城の石垣と海の眺望（ダミー）" class="hero-image">
+          <figcaption style="font-size:13px;color:var(--muted);margin-top:8px;">天守台から望む紀淡海峡の眺め（例）</figcaption>
+        </figure>
+      </section>
+    </main>
+
+    <footer class="site-footer container" role="contentinfo">
+      © 洲本城 公式サイト（デモ）
+    </footer>
+  </div>
+
+  <script>
+    (function(){
+      const loader = document.getElementById('loader');
+      const loaderImage = document.getElementById('loader-image');
+      const site = document.getElementById('site');
+      if (!loader || !loaderImage || !site) return;
+
+      const MIN_DISPLAY_MS = 1800; // 最低表示時間（ms）
+      const MAX_WAIT_MS = 10000;   // 最大待機（ms）
+      const startTs = performance.now();
+
+      // Promise: 画像の読み込み（キャッシュ対応）
+      const imageReady = new Promise((resolve) => {
+        if (loaderImage.complete) {
+          // キャッシュ済みでも次フレームで resolve（ちらつき防止）
+          requestAnimationFrame(() => requestAnimationFrame(resolve));
+        } else {
+          loaderImage.addEventListener('load', () => resolve(), { once: true });
+          loaderImage.addEventListener('error', () => resolve(), { once: true });
+        }
+      });
+
+      // Promise: CSS アニメーション（mask の reveal）完了待ち
+      const maskReady = new Promise((resolve) => {
+        let resolved = false;
+        function done(){ if(resolved) return; resolved = true; resolve(); }
+
+        function onAnimEnd(e){
+          // animationend が来たら完了とする（名称に依存せず）
+          done();
+        }
+        loaderImage.addEventListener('animationend', onAnimEnd, { once: true });
+
+        // フォールバック：万が一アニメーションが発火しない場合
+        setTimeout(done, 2200);
+      });
+
+      // 総合待ち合わせ（ただし最大待機あり）
+      const overall = Promise.race([
+        Promise.all([imageReady, maskReady]),
+        new Promise((res) => setTimeout(res, MAX_WAIT_MS))
+      ]);
+
+      overall.then(async () => {
+        const elapsed = performance.now() - startTs;
+        const wait = Math.max(0, MIN_DISPLAY_MS - elapsed);
+        await new Promise((r) => setTimeout(r, wait));
+
+        // アクセシビリティ更新
+        loader.setAttribute('aria-busy','false');
+
+        // フェードアウト開始（CSS の #loader.loaded でトランジション）
+        loader.classList.add('loaded');
+
+        // loader のトランジション終了を待ってから display:none にする
+        function onTransitionEnd(e){
+          if (e.target !== loader) return;
+          loader.style.display = 'none';
+          loader.removeEventListener('transitionend', onTransitionEnd);
+        }
+        loader.addEventListener('transitionend', onTransitionEnd);
+
+        // 本体表示
+        site.classList.remove('hidden');
+        site.style.visibility = 'visible';
+        site.style.opacity = '1';
+
+        // 最初のインタラクティブ要素へフォーカス（読み上げ対策）
+        const firstInteractive = site.querySelector('a,button,input,textarea,select');
+        if (firstInteractive) firstInteractive.focus({ preventScroll: true });
+      });
+
+      // 保険: 万が一何かで止まった場合の最大タイムアウト（確実に解除）
+      setTimeout(() => {
+        if (loader && getComputedStyle(loader).display !== 'none') {
+          loader.setAttribute('aria-busy','false');
+          loader.classList.add('loaded');
+          loader.style.display = 'none';
+          site.classList.remove('hidden');
+          site.style.visibility = 'visible';
+          site.style.opacity = '1';
+        }
+      }, MAX_WAIT_MS + 500);
+    })();
+  </script>
+</body>
+</html>
