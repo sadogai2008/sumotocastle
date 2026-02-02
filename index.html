@@ -3,297 +3,642 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>洲本城 公式デモ — ローディング付き単一ファイル</title>
+  <title>洲本城 公式 — 石垣特設 & インフォメーション</title>
+  <meta name="description" content="洲本城 公式サイト（ダーク）— 石垣解説、天気、イベント、チケット、ギャラリー、アクセス、保存情報を掲載。">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&family=Noto+Sans+JP:wght@300;500;700&display=swap" rel="stylesheet">
 
   <style>
     :root{
-      --bg: #FBFAF7;
-      --white: #FFFFFF;
-      --ink: #22262A;
-      --muted: #6B6F73;
-      --accent: #A88763;
-      --loader-min-ms: 1800; /* JS と整合させる */
+      --bg:#050607; --panel:#0b0f12; --ink:#efeef0; --muted:#9aa0a6; --accent:#d6b35c; --glass: rgba(255,255,255,0.04); --container:1100px;
+      --card-radius:12px;
     }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;font-family:"Noto Sans JP",system-ui, -apple-system,"Segoe UI",Roboto,Arial;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased}
+    a{color:var(--accent)}
+    header.site-header{position:fixed;inset-inline:0;top:0;z-index:120;background:linear-gradient(180deg,rgba(6,8,10,0.72),rgba(6,8,10,0.32));backdrop-filter:blur(6px);border-bottom:1px solid rgba(255,255,255,0.04);}
+    .header-inner{width:min(92%,var(--container));margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:12px 0}
+    .brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--ink)}
+    .logo{width:42px;height:42px;border-radius:8px;background:linear-gradient(135deg,#bfa35a,#2f3b4f);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700}
+    nav.main-nav a{color:var(--muted);margin-left:14px;font-size:14px;text-decoration:none}
+    nav.main-nav a:hover{color:var(--ink)}
 
-    /* Reset / base */
-    * { box-sizing: border-box; }
-    html,body { height:100%; margin:0; }
-    body {
-      font-family: "Noto Sans JP", "Noto Serif JP", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-      background: var(--white);
-      color: var(--ink);
-      -webkit-font-smoothing:antialiased;
-      -moz-osx-font-smoothing:grayscale;
-      line-height:1.6;
-    }
+    /* HERO */
+    .hero{position:relative;height:78vh;min-height:520px;margin-top:64px;overflow:hidden}
+    .hero-layer{position:absolute;inset:0;background-size:cover;background-position:center;filter:contrast(.9) brightness(.66);transition:opacity 1200ms ease,transform 12s linear;opacity:0;transform:scale(1.02);z-index:0}
+    .hero-layer.active{opacity:1;transform:scale(1.05)}
+    .hero-overlay{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0.36),rgba(0,0,0,0.72));z-index:6}
+    .hero-inner{position:relative;z-index:10;width:min(92%,var(--container));margin:0 auto;padding:48px 0;display:flex;align-items:center;justify-content:space-between}
+    .hero-copy h1{font-family:"Noto Serif JP",serif;font-size:44px;margin:0;color:var(--ink)}
+    .hero-copy p{color:var(--muted);margin-top:8px}
 
-    /* -------------------------
-       LOADER (full-screen)
-       ------------------------- */
-    #loader {
-      position: fixed;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: var(--bg);
-      z-index: 9999;
-      opacity: 1;
-      visibility: visible;
-      transition: opacity 600ms ease, visibility 600ms ease;
-    }
+    /* weather card */
+    .hero-weather{
+  position:absolute;
+  top:20px;
+  right:20px;
+  z-index:20;
+  width:260px;
+  background:linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.01));
+  border:1px solid rgba(255,255,255,0.06);
+  padding:12px;
+  border-radius:var(--card-radius);
+  display:flex;
 
-    .loader-inner {
-      text-align: center;
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-      align-items: center;
-      padding: 20px;
-      max-width: 88vw;
-    }
+  flex-direction:column;   /* ← 追加：縦にする */
+  gap:10px;                /* ← 少し詰める */
 
-    /* Image: vertical mask (bottom transparent -> top opaque) + gentle fade-in */
-    #loader-image {
-      width: 300px;
-      max-width: 68vw;
-      height: auto;
-      display: block;
+  backdrop-filter:blur(6px);
+  box-shadow:0 14px 36px rgba(0,0,0,0.45)
+}
 
-      /* mask: 下が透明、上が不透明 */
-      -webkit-mask-image: linear-gradient(to top, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 100%);
-      mask-image: linear-gradient(to top, transparent 0%, black 100%);
-      -webkit-mask-size: 100% 0%;
-      mask-size: 100% 0%;
-      -webkit-mask-repeat: no-repeat;
-      mask-repeat: no-repeat;
+    .hw-icon{
+  width:auto;          /* ← 変更 */
+  height:64px;
+  font-size:40px;
+  display:flex;
+  align-items:center;
+  justify-content:center
+}
 
-      /* animation: reveal mask (1.8s) + fadeIn */
-      animation: revealMask 1.8s ease forwards, loaderFadeIn 0.9s ease 0.3s forwards;
-      opacity: 0;
-      will-change: opacity, -webkit-mask-size, mask-size, transform;
-    }
+    .hw-temp{font-size:28px;font-weight:700}
+    .hw-desc{color:var(--muted);font-size:13px;margin:6px 0 8px}
+    .hw-row{display:flex;justify-content:space-between;font-size:13px;padding-top:6px;color:var(--muted);border-top:1px solid rgba(255,255,255,0.06);margin-top:6px}
+    .hw-updated{font-size:12px;color:var(--muted);margin-top:6px}
+    
+    .weather-tabs{
+  display:flex;
+  gap:6px;
+  margin-bottom:6px;
+}
 
-    @keyframes revealMask {
-      to { -webkit-mask-size: 100% 100%; mask-size: 100% 100%; }
-    }
-    @keyframes loaderFadeIn {
-      from { opacity: 0; transform: translateY(6px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
+.wt-btn{
+  font-size:11px;
+  padding:2px 8px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.2);
+  background:transparent;
+  color:var(--muted);
+  cursor:pointer;
+}
 
-    /* Loader text */
-    .loader-text {
-      margin: 0;
-      color: var(--ink);
-      font-weight: 600;
-      font-size: 16px;
-      letter-spacing: 0.02em;
-    }
-    .loader-sub {
-      display: block;
-      color: var(--muted);
-      font-weight: 400;
-      font-size: 13px;
-      margin-top: 6px;
-      opacity: 0.95;
-    }
+.wt-btn.active{
+  background:var(--accent);
+  color:#000;
+  border-color:var(--accent);
+}
 
-    /* When loading finished: fade out */
-    #loader.loaded {
-      opacity: 0;
-      visibility: hidden;
-      pointer-events: none;
-    }
+    .hw-main{
+  display:flex;
+  flex-direction:column; /* ← 上下 */
+  align-items:center;
+  gap:2px;
+}
 
-    /* -------------------------
-       SITE (initially hidden)
-       ------------------------- */
-    #site.hidden {
-      visibility: hidden;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 360ms ease;
-    }
 
-    /* Simple site styles for demo */
-    .container { width: min(92%, 1200px); margin: 0 auto; padding: 28px 0; }
-    .site-header { border-bottom: 1px solid rgba(34,38,42,0.04); padding: 18px 0; }
-    .hero { padding: 56px 0; display: grid; grid-template-columns: 1fr 420px; gap: 36px; align-items: center; }
-    .hero-title { font-family: "Noto Serif JP", serif; font-size: 40px; margin: 0 0 12px; }
-    .hero-lead { color: var(--muted); margin: 0 0 20px; font-size: 16px; }
-    .hero-image {
-      width:100%;
-      border-radius: 12px;
-      border: 2px solid #fff;
-      box-shadow: 0 8px 24px rgba(34,38,42,0.06);
-      filter: brightness(1.06) contrast(1.03) saturate(0.92);
-    }
-    .cards { display: grid; grid-template-columns: repeat(3,1fr); gap:18px; margin-top: 18px; }
-    .card { background: #FBFAF7; border-radius: 12px; padding: 18px; border: 1px solid rgba(34,38,42,0.04); }
-    .site-footer { border-top: 1px solid rgba(34,38,42,0.04); padding: 18px 0; color: var(--muted); font-size: 13px; }
+    /* main content */
+    main.content{background:var(--panel);padding:48px 0}
+    .container{width:min(92%,var(--container));margin:0 auto}
+    section{padding:32px 0;border-bottom:1px solid rgba(255,255,255,0.03)}
+    h2{font-family:"Noto Serif JP";margin:0 0 12px;color:var(--ink)}
+    p.lead{color:var(--muted);margin:0 0 12px}
 
-    /* Responsive */
-    @media (max-width:980px) {
-      .hero { grid-template-columns: 1fr; }
-      #loader-image { width: 220px; }
+    /* layout helpers */
+    .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+    .two-col{display:grid;grid-template-columns:1fr 360px;gap:20px;align-items:start}
+    .card{background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));padding:16px;border-radius:12px;border:1px solid rgba(255,255,255,0.04)}
+    .event-card{display:flex;flex-direction:column;gap:8px}
+    .event-time{font-weight:700;color:var(--accent)}
+    .btn{display:inline-block;padding:8px 12px;border-radius:999px;background:var(--accent);color:#071019;font-weight:700;text-decoration:none}
+    .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--ink)}
+
+    /* gallery */
+    .gallery-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+    .gallery-grid img{width:100%;height:160px;object-fit:cover;border-radius:8px;cursor:pointer}
+    .lb{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.9);z-index:300}
+    .lb.active{display:flex}
+    .lb img{max-width:92%;max-height:92%;border-radius:8px}
+
+    /* annotated */
+    .annot-wrap{position:relative;border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,0.03)}
+    .annot-wrap img{width:100%;height:auto;display:block}
+    .hotspot{position:absolute;width:18px;height:18px;border-radius:50%;background:var(--accent);border:2px solid #111;transform:translate(-50%,-50%);cursor:pointer;box-shadow:0 8px 20px rgba(0,0,0,0.4)}
+
+    /* model course list */
+    .timeline{display:flex;flex-direction:column;gap:12px}
+    .timeline .step{display:flex;gap:12px;align-items:flex-start}
+
+    /* access map */
+    .map-embed{width:100%;height:320px;border-radius:10px;border:1px solid rgba(255,255,255,0.03);overflow:hidden}
+
+    /* footer */
+    footer.site-foot{padding:28px 0;text-align:center;color:var(--muted)}
+
+    @media(max-width:980px){
+      .grid-3{grid-template-columns:1fr 1fr}
+      .two-col{grid-template-columns:1fr}
+      .hero-inner{flex-direction:column;align-items:flex-start}
+      .hero-weather{top:12px;right:12px;width:220px;padding:10px}
     }
-    @media (max-width:640px) {
-      #loader-image { width: 180px; }
-      .loader-text { font-size: 15px; }
-      .loader-sub { font-size: 12px; }
+    @media(max-width:640px){
+      .grid-3{grid-template-columns:1fr}
+      .gallery-grid img{height:120px}
     }
   </style>
 </head>
 <body>
-  <!--
-    NOTE:
-    - Please save the uploaded castle illustration as:
-        assets/loader-image.png
-      (or create WebP versions and adjust <picture> if you prefer).
-    - If you want to embed the exact uploaded image as a data URL, replace the img src with the data: URL.
-  -->
-
-  <!-- LOADING SCREEN -->
-  <div id="loader" aria-busy="true" role="status" aria-label="ローディング中">
-    <div class="loader-inner" role="img" aria-hidden="false">
-      <!-- Picture: replace sources if you prepared WebP / @2x -->
-      <picture>
-        <!-- Uncomment / replace if you have webp versions:
-        <source type="image/webp" srcset="assets/loader-image.webp 1x, assets/loader-image@2x.webp 2x">
-        -->
-        <img id="loader-image" src="assets/loader-image.png" alt="洲本城のイラスト（ローディング）" width="300" height="auto">
-      </picture>
-
-      <!-- Restored loading text as requested -->
-      <p class="loader-text">洲本城へようこそ
-        <span class="loader-sub">歴史の景色を映しています… — A glimpse of Sumoto Castle</span>
-      </p>
+  <header class="site-header" role="banner">
+    <div class="header-inner">
+      <a class="brand" href="#" aria-label="洲本城トップへ">
+        <span class="logo" aria-hidden="true">城</span>
+        <span style="font-weight:700;color:var(--ink)">洲本城</span>
+      </a>
+      <nav class="main-nav" aria-label="主要ナビ">
+        <a href="#ishigaki">石垣</a>
+        <a href="#events">イベント</a>
+        <a href="#tickets">チケット</a>
+        <a href="#access">アクセス</a>
+      </nav>
     </div>
-  </div>
+  </header>
 
-  <!-- SITE (initially hidden) -->
-  <div id="site" class="hidden" lang="ja">
-    <header class="site-header container" role="banner">
-      <div style="display:flex;align-items:center;justify-content:space-between;">
-        <div style="font-weight:700;">洲本城</div>
-        <nav aria-label="グローバルナビ">
-          <a href="#history" style="color:var(--muted);text-decoration:none;margin-right:14px;">歴史</a>
-          <a href="#highlights" style="color:var(--muted);text-decoration:none;margin-right:14px;">見どころ</a>
-          <a href="#access" style="color:var(--muted);text-decoration:none;">アクセス</a>
-        </nav>
+  <!-- HERO -->
+  <section class="hero" id="hero" aria-label="ヒーロー">
+    <div class="hero-overlay" aria-hidden="true"></div>
+
+    <!-- Hero layers injected by script -->
+    <div class="hero-inner">
+      <div class="hero-copy">
+        <h1>洲本城 — 石と時間の景色</h1>
+        <p class="lead">石垣の魅力を深掘りする特設。下へスクロールしてイベント、保存情報、ギャラリーを確認できます。</p>
       </div>
-    </header>
+    </div>
 
-    <main class="container" role="main">
-      <section class="hero">
+    <!-- Weather card (Open-Meteo, no API key) -->
+    <div class="hero-weather" role="region" aria-label="洲本市の天気" aria-live="polite">
+      <div class="weather-left">
+        <div class="weather-tabs">
+  <button class="wt-btn active" data-day="0">今日</button>
+  <button class="wt-btn" data-day="1">明日</button>
+</div>
+
+        <div id="hwIcon" class="hw-icon" aria-hidden="true">－</div>
+        <div class="hw-updated" id="hwUpdated">--</div>
+      </div>
+      <div class="weather-right">
+        <div id="hwTemp" class="hw-temp">--°C</div>
+        <div id="hwDesc" class="hw-desc">天気を読み込み中…</div>
+        <div class="hw-row"><span>最高</span><strong id="hwHigh">--°C</strong></div>
+        <div class="hw-row"><span>最低</span><strong id="hwLow">--°C</strong></div>
+        <div class="hw-row"><span>降水</span><strong id="hwPop">--%</strong></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MAIN CONTENT -->
+  <main class="content" id="main" role="main">
+    <div class="container">
+
+      <!-- EVENTS -->
+      <section id="events" aria-labelledby="events-title">
+        <h2 id="events-title">本日のイベント / Events</h2>
+        <p class="lead">当日・近日のイベント一覧。詳細や申込は各カードをご覧ください。</p>
+        <div id="eventsList" class="grid-3" aria-live="polite"></div>
+      </section>
+
+      <!-- NOTICES & TICKETS -->
+      <section id="notices_tickets" class="two-col">
         <div>
-          <h1 class="hero-title">洲本城 — 時の風景を歩む</h1>
-          <p class="hero-lead">淡路島の海と石垣が織りなす、静かな名城へご案内します。<br><small>Sumoto Castle — A serene citadel overlooking Awaji Island.</small></p>
+          <h2 id="notices-title">お知らせ / Notices</h2>
+          <div id="noticesList"></div>
 
-          <div class="cards" aria-hidden="false">
-            <article class="card"><h3>天守台</h3><p>往時の構造を伝える重要な遺構。<br><small>Keep base — the heart of the castle.</small></p></article>
-            <article class="card"><h3>石垣</h3><p>職人の技が息づく石積み。<br><small>Stone walls — regional craftsmanship.</small></p></article>
-            <article class="card"><h3>眺望</h3><p>海と島々を望む景色。朝夕がおすすめ。<br><small>Viewpoint — sunrise & sunset.</small></p></article>
-          </div>
+          <h2 style="margin-top:20px;">見どころピックアップ</h2>
+          <div id="highlights" class="grid-3" style="margin-top:12px;"></div>
         </div>
 
-        <figure style="margin:0;">
-          <img src="assets/hero.jpg" alt="洲本城の石垣と海の眺望（ダミー）" class="hero-image">
-          <figcaption style="font-size:13px;color:var(--muted);margin-top:8px;">天守台から望む紀淡海峡の眺め（例）</figcaption>
-        </figure>
-      </section>
-    </main>
+        <aside>
+          <h2 id="tickets-title">開館情報・チケット</h2>
+          <div class="card" id="ticketCard">
+            <p><strong>洲本城跡（上の城）は公園施設かつ<br>史跡となっており､常時無料開放しています。</strong></p>
+           
+            <p class="lead">ただし、夜間照明が十分に設置されていないため、日没後は懐中電灯などを持ってくるなどして足元に注意してください。</p>
+            
+            <div style="margin-top:12px"><a class="btn ghost" href="#info" id="downloadBrochure">パンフレットをダウンロード</a></div>
+          </div>
 
-    <footer class="site-footer container" role="contentinfo">
-      © 洲本城 公式サイト（デモ）
-    </footer>
-  </div>
+          <h2 style="margin-top:18px;">保存と協力</h2>
+          <div class="card">
+            <p>石垣の保全活動にご協力ください。寄付・ボランティアを随時募集しています。</p>
+            <div style="margin-top:8px"><a class="btn" href="#donate">支援する</a></div>
+          </div>
+        </aside>
+      </section>
+
+      <!-- MODEL COURSES -->
+      <section id="courses">
+        <h2>推奨モデルコース / Suggested Routes</h2>
+        <div id="coursesList" class="timeline"></div>
+      </section>
+
+      <!-- ANNOTATED (hotspots) -->
+      <section id="annotated">
+        <h2>注釈図 / Annotated Diagram</h2>
+        <p class="lead">図中のマーカーをクリックすると、石積みの技法解説が表示されます。</p>
+        <div class="annot-wrap card" style="margin-top:12px;">
+          <img id="annotImage" src="assets/ishigaki-annot-large.jpg" alt="洲本城の石垣注釈図">
+          <!-- hotspots will be injected -->
+        </div>
+      </section>
+
+      <!-- GALLERY -->
+      <section id="gallery">
+        <h2>ギャラリー / Photo Gallery</h2>
+        <p class="lead">画像をクリックすると拡大表示されます。</p>
+        <div id="galleryGrid" class="gallery-grid" style="margin-top:12px;"></div>
+      </section>
+
+      <!-- ACCESS -->
+      <section id="access">
+        <h2>アクセス / Access</h2>
+        <p class="lead">洲本城の所在地と交通手段、駐車場情報を掲載しています。</p>
+        <div class="card" style="margin-top:12px;">
+          <p><strong>住所</strong>：〒656-xxxx 兵庫県洲本市</p>
+          <p><strong>最寄り</strong>：洲本バスセンターからバスで約10分</p>
+          <div class="map-embed" style="margin-top:8px;">
+            <!-- simple map link (static or embed) -->
+            <iframe title="Map" src="https://www.google.com/maps?q=34.3439,134.8992&z=14&output=embed" style="width:100%;height:100%;border:0" loading="lazy"></iframe>
+          </div>
+        </div>
+      </section>
+
+      <!-- FAQ -->
+      <section id="faq">
+        <h2>よくある質問 / FAQ</h2>
+        <div id="faqList" style="margin-top:12px"></div>
+      </section>
+
+      <!-- CONSERVATION -->
+      <section id="conservation">
+        <h2>保存とレポート / Conservation</h2>
+        <div class="card" style="margin-top:12px;">
+          <p>洲本城の石垣は定期的な記録と補修を行っています。最近の修復レポートは<a href="#reports">こちら</a>。</p>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <div id="lightbox" class="lb" role="dialog" aria-hidden="true"><img id="lbImage" alt=""></div>
+
+  <footer class="site-foot">
+    <div style="padding:20px 0;color:var(--muted)">© 2026 洲本城 公式サイト — 連絡: info@example.jp</div>
+  </footer>
 
   <script>
-    (function(){
-      const loader = document.getElementById('loader');
-      const loaderImage = document.getElementById('loader-image');
-      const site = document.getElementById('site');
-      if (!loader || !loaderImage || !site) return;
+  (function(){
+    /* ===========================
+       Inline data (sample)
+       Replace with real JSON files or CMS in production
+       =========================== */
+    const DATA = {
+      events: [
+        { id:'e1', title:'郷土芸能の実演', date:'2026-02-01', start:'13:00', end:'14:00', place:'本丸広場', excerpt:'伝統芸能の実演。観覧無料。', image:'assets/events/performance.jpg', signup:'' },
+        { id:'e2', title:'石垣ガイドツアー', date:'2026-02-01', start:'15:00', end:'16:00', place:'天守台', excerpt:'学芸員が石垣の見どころをご案内（要申込）。', image:'assets/events/tour.jpg', signup:'#'}
+      ],
+      notices: [
+        { id:'n1', title:'臨時休館のお知らせ', date:'2026-03-05', excerpt:'展示入替のため休館します。', body:'展示入替作業のため終日休館します。', pinned:true },
+        { id:'n2', title:'冬季ライトアップ', date:'2026-01-10', excerpt:'期間限定でライトアップを実施中。', body:'毎日 17:30 〜 20:00', pinned:false }
+      ],
+      highlights: [
+        { id:'h1', title:'天守台西面', short:'夕景が美しいスポット', image:'assets/highlight-west.jpg', anchor:'#ishigaki' },
+        { id:'h2', title:'大手門付近', short:'加工痕が観察できる', image:'assets/highlight-gate.jpg', anchor:'#ishigaki' },
+        { id:'h3', title:'石切場跡', short:'石材の産地を学べる', image:'assets/highlight-quarry.jpg', anchor:'#ishigaki' }
+      ],
+      courses: [
+        { id:'c1', title:'半日コース（約3時間）', duration:'約3時間', steps:[
+          { time:'09:00', place:'大手門', desc:'入場・門周辺の解説' },
+          { time:'10:00', place:'天守台', desc:'石垣と眺望を観察' },
+          { time:'11:00', place:'本丸広場', desc:'郷土料理の軽食' }
+        ]}
+      ],
+      annotated: {
+        image:'assets/ishigaki-annot-large.jpg',
+        hotspots:[
+          { id:'hs1', x:26, y:42, title:'野面積', desc:'自然石を活かして積む技法。' },
+          { id:'hs2', x:55, y:36, title:'打込み接', desc:'石を整えて緻密に組む手法。' },
+          { id:'hs3', x:72, y:62, title:'布積', desc:'水平に揃えて整然と積む様式。' }
+        ]
+      },
+      gallery: [
+        { id:'g1', thumb:'assets/ishigaki-1.jpg', large:'assets/ishigaki-1-large.jpg', alt:'天守台の石垣（夕景）', caption:'天守台からの夕景', category:'sunset' },
+        { id:'g2', thumb:'assets/ishigaki-2.jpg', large:'assets/ishigaki-2-large.jpg', alt:'大手門付近', caption:'大手門の石積み', category:'stone' },
+        { id:'g3', thumb:'assets/ishigaki-3.jpg', large:'assets/ishigaki-3-large.jpg', alt:'加工跡', caption:'加工痕が残る石', category:'detail' }
+      ],
+      faq: [
+        { q:'駐車場はありますか？', a:'本丸近くに無料/有料駐車場があります。混雑時は公共交通機関のご利用を推奨します。' },
+        { q:'ペットは入れますか？', a:'リード着用で入場できますが、展示室内は不可です。' }
+      ]
+    };
 
-      const MIN_DISPLAY_MS = 1800; // 最低表示時間（ms）
-      const MAX_WAIT_MS = 10000;   // 最大待機（ms）
-      const startTs = performance.now();
-
-      // Promise: 画像の読み込み（キャッシュ対応）
-      const imageReady = new Promise((resolve) => {
-        if (loaderImage.complete) {
-          // キャッシュ済みでも次フレームで resolve（ちらつき防止）
-          requestAnimationFrame(() => requestAnimationFrame(resolve));
-        } else {
-          loaderImage.addEventListener('load', () => resolve(), { once: true });
-          loaderImage.addEventListener('error', () => resolve(), { once: true });
-        }
+    /* ===========================
+       Hero layers (simple single image used; can add slider)
+       =========================== */
+    const HERO_IMAGES = ['assets/hero-1.jpg']; // add more if needed
+    function initHero(){
+      const hero = document.getElementById('hero');
+      HERO_IMAGES.forEach((src,i)=> {
+        const d = document.createElement('div');
+        d.className = 'hero-layer' + (i===0 ? ' active' : '');
+        d.style.backgroundImage = `url('${src}')`;
+        hero.insertBefore(d, hero.firstChild);
       });
+    }
 
-      // Promise: CSS アニメーション（mask の reveal）完了待ち
-      const maskReady = new Promise((resolve) => {
-        let resolved = false;
-        function done(){ if(resolved) return; resolved = true; resolve(); }
+    /* ===========================
+       WEATHER (Open-Meteo, no API key)
+       - caching in localStorage to reduce requests
+       =========================== */
+    const LAT = 34.3439, LON = 134.8992;
+    const CACHE_KEY = 'sumoto_openmeteo_v1';
+    const CACHE_TTL = 10 * 60 * 1000; // 10min
 
-        function onAnimEnd(e){
-          // animationend が来たら完了とする（名称に依存せず）
-          done();
+    const elIcon = document.getElementById('hwIcon');
+    const elTemp = document.getElementById('hwTemp');
+    const elDesc = document.getElementById('hwDesc');
+    const elHigh = document.getElementById('hwHigh');
+    const elLow  = document.getElementById('hwLow');
+    const elPop  = document.getElementById('hwPop');
+    const elUpdated = document.getElementById('hwUpdated');
+
+    const safe = (fn, fallback=null) => { try{ const v = fn(); return (v===undefined||v===null) ? fallback : v; }catch(e){ return fallback; } };
+
+    function weatherIcon(code){
+      code = Number(code);
+      if (code === 0) return '☀️';
+      if (code === 1 || code === 2) return '⛅';
+      if (code === 3) return '☁️';
+      if (code === 45 || code === 48) return '🌫️';
+      if ([51,53,55,56,57].includes(code)) return '🌦️';
+      if ([61,63,65,80,81,82].includes(code)) return '🌧️';
+      if ([71,73,75,77,85,86].includes(code)) return '❄️';
+      if ([95,96,99].includes(code)) return '⛈️';
+      return '－';
+    }
+    function castleComment(max,pop){
+      if(pop >= 60) return '雨の可能性が高いです。足元にご注意ください。';
+      if(max <= 5) return '冷え込みが厳しいです。防寒を。';
+      if(max <= 10) return 'やや寒いです。上着があると安心です。';
+      if(max <= 15) return 'ひんやりとしています。散策に良い気候です。';
+      if(max <= 22) return '穏やかな陽気。散策におすすめです。';
+      return '暑さ対策を忘れずに。';
+    }
+
+    function readCache(){ try{ const raw = localStorage.getItem(CACHE_KEY); if(!raw) return null; const p = JSON.parse(raw); if(Date.now() - p.ts > CACHE_TTL) return null; return p.data; }catch(e){return null;} }
+    function writeCache(d){ try{ localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data: d })); }catch(e){} }
+
+    async function fetchWeather(){
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(LAT)}&longitude=${encodeURIComponent(LON)}` +
+                  `&current_weather=true&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=Asia%2FTokyo`;
+      const res = await fetch(url, { cache: 'no-cache' });
+      if(!res.ok) throw new Error('fetch failed: '+res.status);
+      return res.json();
+    }
+
+    async function initWeather(){
+      const cached = readCache();
+      if(cached){
+        renderWeather(cached,0);
+        elUpdated.textContent = '最終更新（キャッシュ）: ' + new Date().toLocaleTimeString();
+      }
+      try{
+        const data = await fetchWeather();
+        writeCache(data);
+        renderWeather(data,0);
+        elUpdated.textContent = '最終更新: ' + new Date().toLocaleTimeString();
+        window.__weatherData = data; // keep for other UI
+      }catch(err){
+        console.warn(err);
+        if(!cached){
+          elDesc.textContent = '天気情報を取得できません';
+          elTemp.textContent = '--°C';
+          elHigh.textContent = '--°C';
+          elLow.textContent = '--°C';
+          elPop.textContent = '--%';
+          elIcon.textContent = '－';
+          elUpdated.textContent = '--';
         }
-        loaderImage.addEventListener('animationend', onAnimEnd, { once: true });
+      }
+    }
 
-        // フォールバック：万が一アニメーションが発火しない場合
-        setTimeout(done, 2200);
+    function renderWeather(data, day){
+      const current = data.current_weather;
+      const daily = data.daily || {};
+      const maxArr = daily.temperature_2m_max || [];
+      const minArr = daily.temperature_2m_min || [];
+      const popArr = daily.precipitation_probability_max || [];
+      const codeArr = daily.weathercode || [];
+
+      const max = safe(()=> maxArr[day], null);
+      const min = safe(()=> minArr[day], null);
+      const pop = safe(()=> popArr[day], null);
+      const code = safe(()=> codeArr[day], null);
+
+      const displayTemp = (day===0 && current && typeof current.temperature==='number') ? Math.round(current.temperature)+'°C' : (max!==null?Math.round(max)+'°C':'--°C');
+
+      elTemp.textContent = displayTemp;
+      elHigh.textContent = (max!==null?Math.round(max)+'°C':'--°C');
+      elLow.textContent  = (min!==null?Math.round(min)+'°C':'--°C');
+      elPop.textContent  = (pop!==null?pop+'%':'--%');
+      elIcon.textContent = weatherIcon(code!==null?code:(current && current.weathercode?current.weathercode:null));
+      elDesc.textContent = castleComment(max!==null?Number(max):(current?Number(current.temperature):0), pop!==null?Number(pop):0);
+    }
+
+    /* ===========================
+       Render Events / Notices / Highlights / Courses / Gallery / Annotated / FAQ
+       Use DATA above as source
+       =========================== */
+
+    function renderEvents(){
+      const list = document.getElementById('eventsList');
+      list.innerHTML = '';
+      DATA.events.forEach(ev => {
+        const card = document.createElement('div'); card.className = 'card event-card';
+        card.innerHTML = `
+          <div style="min-height:86px; background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); padding:8px; border-radius:8px;">
+            <div class="event-time">${ev.date} ${ev.start}〜</div>
+            <div style="font-weight:700;margin-top:6px">${ev.title}</div>
+            <div style="color:var(--muted);margin-top:6px">${ev.place} — ${ev.excerpt}</div>
+          </div>
+          <div style="margin-top:8px;display:flex;gap:8px;justify-content:flex-end">
+            ${ev.signup ? `<a class="btn" href="${ev.signup}" target="_blank" rel="noopener">申込</a>` : ''}
+            <a class="btn ghost" href="#${ev.id}">詳細</a>
+          </div>
+        `;
+        list.appendChild(card);
       });
+    }
 
-      // 総合待ち合わせ（ただし最大待機あり）
-      const overall = Promise.race([
-        Promise.all([imageReady, maskReady]),
-        new Promise((res) => setTimeout(res, MAX_WAIT_MS))
-      ]);
-
-      overall.then(async () => {
-        const elapsed = performance.now() - startTs;
-        const wait = Math.max(0, MIN_DISPLAY_MS - elapsed);
-        await new Promise((r) => setTimeout(r, wait));
-
-        // アクセシビリティ更新
-        loader.setAttribute('aria-busy','false');
-
-        // フェードアウト開始（CSS の #loader.loaded でトランジション）
-        loader.classList.add('loaded');
-
-        // loader のトランジション終了を待ってから display:none にする
-        function onTransitionEnd(e){
-          if (e.target !== loader) return;
-          loader.style.display = 'none';
-          loader.removeEventListener('transitionend', onTransitionEnd);
-        }
-        loader.addEventListener('transitionend', onTransitionEnd);
-
-        // 本体表示
-        site.classList.remove('hidden');
-        site.style.visibility = 'visible';
-        site.style.opacity = '1';
-
-        // 最初のインタラクティブ要素へフォーカス（読み上げ対策）
-        const firstInteractive = site.querySelector('a,button,input,textarea,select');
-        if (firstInteractive) firstInteractive.focus({ preventScroll: true });
+    function renderNotices(){
+      const el = document.getElementById('noticesList');
+      el.innerHTML = '';
+      DATA.notices.forEach(n => {
+        const d = document.createElement('div'); d.className = 'card'; d.style.marginBottom = '10px';
+        d.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center"><div>
+          <strong>${n.title}</strong><div style="color:var(--muted);font-size:13px">${n.date}</div>
+        </div><div>${n.pinned?'<span style="background:var(--accent);color:#000;padding:6px;border-radius:8px;font-weight:700;font-size:12px">重要</span>':''}</div></div>
+        <p style="margin-top:10px;color:var(--muted)">${n.excerpt}</p>`;
+        el.appendChild(d);
       });
+    }
 
-      // 保険: 万が一何かで止まった場合の最大タイムアウト（確実に解除）
-      setTimeout(() => {
-        if (loader && getComputedStyle(loader).display !== 'none') {
-          loader.setAttribute('aria-busy','false');
-          loader.classList.add('loaded');
-          loader.style.display = 'none';
-          site.classList.remove('hidden');
-          site.style.visibility = 'visible';
-          site.style.opacity = '1';
-        }
-      }, MAX_WAIT_MS + 500);
-    })();
+    function renderHighlights(){
+      const el = document.getElementById('highlights');
+      el.innerHTML = '';
+      DATA.highlights.forEach(h=>{
+        const c = document.createElement('div'); c.className = 'card';
+        c.innerHTML = `<div style="height:120px;background-image:url('${h.image}');background-size:cover;background-position:center;border-radius:8px"></div>
+          <div style="margin-top:8px;font-weight:700">${h.title}</div>
+          <div style="color:var(--muted);font-size:13px;margin-top:6px">${h.short}</div>
+          <div style="margin-top:10px;text-align:right"><a class="btn ghost" href="${h.anchor}">詳しく</a></div>`;
+        el.appendChild(c);
+      });
+    }
+
+    function renderCourses(){
+      const el = document.getElementById('coursesList');
+      el.innerHTML = '';
+      DATA.courses.forEach(c=>{
+        const wrap = document.createElement('div'); wrap.className='card';
+        wrap.innerHTML = `<div style="font-weight:700">${c.title} <span style="color:var(--muted);font-weight:500">(${c.duration})</span></div>`;
+        const steps = document.createElement('div'); steps.style.marginTop='8px';
+        c.steps.forEach(s=>{
+          const step = document.createElement('div'); step.className='step';
+          step.innerHTML = `<div style="width:72px;color:var(--accent);font-weight:700">${s.time}</div><div><div style="font-weight:700">${s.place}</div><div style="color:var(--muted);font-size:13px">${s.desc}</div></div>`;
+          steps.appendChild(step);
+        });
+        wrap.appendChild(steps);
+        el.appendChild(wrap);
+      });
+    }
+
+    /* Annotated (hotspots) */
+    function renderAnnotated(){
+      const wrap = document.querySelector('.annot-wrap');
+      wrap.querySelectorAll('.hotspot').forEach(n=>n.remove());
+      const img = document.getElementById('annotImage');
+      img.addEventListener('load', ()=> {
+        const rect = img.getBoundingClientRect();
+        // create hotspots relative to image element
+        DATA.annotated.hotspots.forEach(h=>{
+          const btn = document.createElement('button');
+          btn.className = 'hotspot';
+          btn.style.left = h.x + '%';
+          btn.style.top = h.y + '%';
+          btn.setAttribute('aria-label', h.title);
+          btn.addEventListener('click', (e)=>{
+            e.stopPropagation();
+            showHotspotTooltip(h, btn);
+          });
+          wrap.appendChild(btn);
+        });
+      });
+    }
+
+    function showHotspotTooltip(h, btnEl){
+      // remove existing
+      const prev = document.getElementById('hs-tip');
+      if(prev) prev.remove();
+      const tip = document.createElement('div'); tip.id='hs-tip';
+      tip.style.position='absolute'; tip.style.zIndex=500; tip.style.background='#fff'; tip.style.color='#111'; tip.style.padding='10px'; tip.style.borderRadius='8px'; tip.style.maxWidth='260px'; tip.style.boxShadow='0 12px 36px rgba(0,0,0,0.2)'; tip.innerHTML = `<strong>${h.title}</strong><div style="margin-top:6px;font-size:13px;color:#333">${h.desc}</div>`;
+      document.body.appendChild(tip);
+      const r = btnEl.getBoundingClientRect();
+      tip.style.left = (r.left + window.scrollX + 12) + 'px';
+      tip.style.top = (r.top + window.scrollY - 8) + 'px';
+      // remove on click elsewhere
+      setTimeout(()=> {
+        document.addEventListener('click', function cl(){
+          tip.remove(); document.removeEventListener('click', cl);
+        }, { once: true });
+      }, 10);
+    }
+
+    /* Gallery & Lightbox */
+    function renderGallery(){
+      const grid = document.getElementById('galleryGrid');
+      grid.innerHTML = '';
+      DATA.gallery.forEach(img=>{
+        const el = document.createElement('img'); el.src = img.thumb; el.alt = img.alt; el.loading='lazy';
+        el.addEventListener('click', ()=> openLightbox(img));
+        grid.appendChild(el);
+      });
+    }
+    function openLightbox(img){
+      const lb = document.getElementById('lightbox');
+      const lbImg = document.getElementById('lbImage');
+      lbImg.src = img.large || img.thumb;
+      lbImg.alt = img.alt || '';
+      lb.classList.add('active'); lb.setAttribute('aria-hidden','false');
+    }
+    document.getElementById('lightbox').addEventListener('click', e=>{
+      if(e.target === e.currentTarget || e.target.id === 'lbImage'){
+        e.currentTarget.classList.remove('active'); e.currentTarget.setAttribute('aria-hidden','true'); document.getElementById('lbImage').src='';
+      }
+    });
+    document.addEventListener('keydown', e=> { if(e.key==='Escape' && document.getElementById('lightbox').classList.contains('active')){ document.getElementById('lightbox').classList.remove('active'); document.getElementById('lbImage').src=''; } });
+
+    /* FAQ */
+    function renderFAQ(){
+      const el = document.getElementById('faqList');
+      el.innerHTML = '';
+      DATA.faq.forEach((q,i)=>{
+        const d = document.createElement('details'); d.className='card'; d.style.marginBottom='10px';
+        d.innerHTML = `<summary style="font-weight:700;cursor:pointer">${q.q}</summary><div style="margin-top:8px;color:var(--muted)">${q.a}</div>`;
+        el.appendChild(d);
+      });
+    }
+
+    
+    /* ===========================
+       Init on load
+       =========================== */
+    function initAll(){
+      initHero();
+      renderEvents();
+      renderNotices();
+      renderHighlights();
+      renderCourses();
+      renderAnnotated();
+      renderGallery();
+      renderFAQ();
+      initWeather();
+      setupTabs();
+    }
+
+    /* Tabs for weather (today/tomorrow) */
+    function setupTabs(){
+      const tabs = document.querySelectorAll('.hero-weather [data-day]');
+      tabs.forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          const idx = Number(btn.dataset.day);
+          const w = window.__weatherData || readCache();
+          if(w) renderWeather(w, idx);
+          tabs.forEach(t=>t.classList.remove('active'));
+          btn.classList.add('active');
+        });
+        btn.addEventListener('keydown', (e)=> {
+          if(e.key === 'Enter' || e.key === ' ') { e.preventDefault(); btn.click(); }
+        });
+      });
+    }
+    
+
+
+    // Run
+    initAll();
+
+    // expose DATA for debugging
+    window.__SITE_DATA = DATA;
+
+  })();
   </script>
 </body>
 </html>
